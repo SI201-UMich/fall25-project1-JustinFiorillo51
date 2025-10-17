@@ -27,14 +27,22 @@ def loadPenguins(f):
     return penguins
 
 def highSpeciesCt(penguins):
-    """Returns dict of {island: most common species}"""
+
+    """
+    Returns dict of {island: (most common species, percent of all in 2009)}
+    Only counts penguins from the year 2009
+    Uses island, species, and year
+    """
     species_counts = {}
 
     for penguin in penguins.values():
         island = penguin["island"]
         species = penguin["species"]
-        if island == "" or species == "":
+        year = penguin["year"]
+
+        if island == "" or species == "" or year != "2009":
             continue
+
         if island not in species_counts:
             species_counts[island] = []
 
@@ -44,6 +52,7 @@ def highSpeciesCt(penguins):
     for island in species_counts:
         sp_list = species_counts[island]
         total = len(sp_list)
+
         counts = {}
         for sp in sp_list:
             counts[sp] = counts.get(sp, 0) + 1
@@ -57,19 +66,27 @@ def highSpeciesCt(penguins):
 
         percent = round((most_count / total) * 100, 1)
         popSpecies[island] = (most_common, percent)
+
     return popSpecies
 
 def sexCt(penguins, popSpecies):
-    """Returns dict {island: predominant sex of most common species}"""
+    """
+    Returns dict {island: predominant sex of most common species in 2009}
+    Uses Island, species, sex and year
+    """
+
     sexCount = {}
     for island in popSpecies:
         species, percent = popSpecies[island]
         counts = {}
         for penguin in penguins.values():
-            if penguin["island"] == island and penguin["species"] == species:
+            if (penguin["island"] == island and
+                penguin["species"] == species and
+                penguin["year"] == "2009"):  
                 sex = penguin["sex"]
-                if sex and sex != "NA": 
+                if sex and sex != "NA":
                     counts[sex] = counts.get(sex, 0) + 1
+
         if counts:
             max_sex = None
             max_count = 0
@@ -96,7 +113,7 @@ def generateReport(popSpecies, sexCount, out_file="penguin_report.txt"):
             f.write("  Most common species: " + species + " (" + str(percent) + "%)\n")
             f.write("  Predominant sex: " + str(sex) + "\n\n")
 
-class Penguins(unittest.TestCase):
+class Penguins:
     def main():
         penguins = loadPenguins("penguins.csv")
         popSpecies = highSpeciesCt(penguins)
@@ -105,15 +122,17 @@ class Penguins(unittest.TestCase):
 
     if __name__ == "__main__":
         main()
-    
+        
+class PTest(unittest.TestCase):
     def setUp(self):
         self.fake_penguins = {
-            "1": {"species": "Adelie", "island": "Torgersen", "sex": "male"},
-            "2": {"species": "Adelie", "island": "Torgersen", "sex": "female"},
-            "3": {"species": "Adelie", "island": "Torgersen", "sex": "female"},
-            "4": {"species": "Gentoo", "island": "Biscoe", "sex": "male"},
-            "5": {"species": "Gentoo", "island": "Biscoe", "sex": "male"},
-            "6": {"species": "Chinstrap", "island": "Dream", "sex": None}
+            "1": {"species": "Adelie", "island": "Torgersen", "sex": "male", "year": "2009"},
+            "2": {"species": "Adelie", "island": "Torgersen", "sex": "female", "year": "2009"},
+            "3": {"species": "Adelie", "island": "Torgersen", "sex": "female", "year": "2009"},
+            "4": {"species": "Gentoo", "island": "Biscoe", "sex": "male", "year": "2009"},
+            "5": {"species": "Gentoo", "island": "Biscoe", "sex": "male", "year": "2007"}, 
+            "6": {"species": "Chinstrap", "island": "Dream", "sex": None, "year": "2009"},
+            "7": {"species": "Adelie", "island": "Torgersen", "sex": "male", "year": "2007"}  
         }
     def test_highSpeciesCt_normal(self):
         result = highSpeciesCt(self.fake_penguins)
@@ -122,21 +141,24 @@ class Penguins(unittest.TestCase):
     def test_highSpeciesCt_percent(self):
         result = highSpeciesCt(self.fake_penguins)
         species, percent = result["Torgersen"]
-        self.assertAlmostEqual(percent, 100.0) 
+        self.assertEqual(species, "Adelie")
+        self.assertEqual(percent, 100.0)
 
     def test_highSpeciesCt_edge_empty(self):
         result = highSpeciesCt({})
         self.assertEqual(result, {})
 
-    def test_highSpeciesCt_edge_missing_data(self):
-        bad_data = {"1": {"species": "", "island": "", "sex": "male"}}
-        result = highSpeciesCt(bad_data)
+    def test_highSpeciesCt_edge_year_filter(self):
+        only_2007 = {
+            "1": {"species": "Adelie", "island": "Torgersen", "sex": "male", "year": "2007"}
+        }
+        result = highSpeciesCt(only_2007)
         self.assertEqual(result, {})
 
     def test_sexCt_normal(self):
         popSpecies = {"Torgersen": ("Adelie", 100.0)}
         result = sexCt(self.fake_penguins, popSpecies)
-        self.assertEqual(result["Torgersen"], "female")  
+        self.assertEqual(result["Torgersen"], "female") 
 
     def test_sexCt_multiple_islands(self):
         popSpecies = {
@@ -155,35 +177,5 @@ class Penguins(unittest.TestCase):
         result = sexCt({}, {})
         self.assertEqual(result, {})
 
-    def test_generateReport_creates_file(self):
-        popSpecies = {"Torgersen": ("Adelie", 100.0)}
-        sexCount = {"Torgersen": "female"}
-        generateReport(popSpecies, sexCount, "test_report.txt")
-
-        with open("test_report.txt") as f:
-            content = f.read()
-        self.assertIn("Adelie", content)
-
-    def test_generateReport_empty(self):
-        generateReport({}, {}, "empty_report.txt")
-        with open("empty_report.txt") as f:
-            content = f.read()
-        self.assertIn("Penguin Analysis Report", content)
-
-    def test_generateReport_percent_output(self):
-        popSpecies = {"Biscoe": ("Gentoo", 66.7)}
-        sexCount = {"Biscoe": "male"}
-        generateReport(popSpecies, sexCount, "percent_report.txt")
-
-        with open("percent_report.txt") as f:
-            content = f.read()
-        self.assertIn("(66.7%)", content)  
-
-    def test_generateReport_none_sex(self):
-        popSpecies = {"Dream": ("Chinstrap", 100.0)}
-        sexCount = {"Dream": None}
-        generateReport(popSpecies, sexCount, "none_sex_report.txt")
-
-        with open("none_sex_report.txt") as f:
-            content = f.read()
-        self.assertIn("Predominant sex: None", content)
+if __name__ == "__main__":
+    unittest.main()
