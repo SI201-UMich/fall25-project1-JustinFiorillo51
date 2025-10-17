@@ -154,3 +154,36 @@ class Penguins(unittest.TestCase):
     def test_sexCt_edge_empty(self):
         result = sexCt({}, {})
         self.assertEqual(result, {})
+
+    def test_generateReport_creates_file(self):
+        popSpecies = {"Torgersen": ("Adelie", 100.0)}
+        sexCount = {"Torgersen": "female"}
+        generateReport(popSpecies, sexCount, "test_report.txt")
+
+        with open("test_report.txt") as f:
+            content = f.read()
+        self.assertIn("Adelie", content)
+
+    def test_generateReport_empty(self):
+        generateReport({}, {}, "empty_report.txt")
+        with open("empty_report.txt") as f:
+            content = f.read()
+        self.assertIn("Penguin Analysis Report", content)
+
+    def test_generateReport_percent_output(self):
+        popSpecies = {"Biscoe": ("Gentoo", 66.7)}
+        sexCount = {"Biscoe": "male"}
+        generateReport(popSpecies, sexCount, "percent_report.txt")
+
+        with open("percent_report.txt") as f:
+            content = f.read()
+        self.assertIn("(66.7%)", content)  
+
+    def test_generateReport_none_sex(self):
+        popSpecies = {"Dream": ("Chinstrap", 100.0)}
+        sexCount = {"Dream": None}
+        generateReport(popSpecies, sexCount, "none_sex_report.txt")
+
+        with open("none_sex_report.txt") as f:
+            content = f.read()
+        self.assertIn("Predominant sex: None", content)
